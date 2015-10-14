@@ -17,7 +17,7 @@
 #define FSRLONG_N 6                  //FSR AND POS SENSOR VARIABLES AND THRESHOLD LEVELS
 #define POSLONG_N 6
 #define FSRSHORT_N 8 
-#define THRESH_SHORT 930
+#define THRESH_SHORT 850
 #define THRESH_LONG 930
 
 int fsrlongPins[] = {A0, A1, A2, A3, A4, A5}; //the pins for the long fsr sensors
@@ -27,6 +27,10 @@ int fsrlongReadings[FSRLONG_N];
 int poslongReadings[POSLONG_N];
 int fsrshortReadings[FSRSHORT_N];
 int poslongMidi[POSLONG_N];
+int poslongPitch [POSLONG_N];
+int posnoteLevel[POSLONG_N];
+int posnotePos [POSLONG_N];
+int posChange [POSLONG_N];
 int fsrshortmidiVol[FSRSHORT_N];
 bool fsrshortPress[FSRSHORT_N];
 bool fsrlongPress [FSRLONG_N];
@@ -34,12 +38,15 @@ bool fsrlongPress [FSRLONG_N];
 
 int controlVal = 31;                              //smallest control value - 1 (make sure it doesnt conflict with the other midi inst)
 
-int scale[] = {60, 62, 64, 65, 67, 69, 71, 72};   //C MAJOR SCALE
+int scalelong[] = {60,62,65,67,69,72};
+int scaleshort[] = {60, 62, 64, 65, 67, 69, 71, 72};   //C MAJOR SCALE
 
 #define BUTTON1 1                                 //BUTTONS AND BOUNCE
 #define BUTTON2 0
 Bounce ButtonUp = Bounce(BUTTON1, 10);
 Bounce ButtonDown = Bounce(BUTTON2, 10);
+int bank = 0;
+#define NUM_BANKS 3
 
 void setup() {
 
@@ -59,6 +66,12 @@ void setup() {
   for(int i=0; i<FSRLONG_N; i++){ 
     fsrlongPress[i]=false; 
   }
+  for (int i=0; i<FSRSHORT_N; i++){
+    usbMIDI.sendNoteOff(scaleshort[i], 127, MIDI_CHAN);  
+  }
+    for (int i=0; i<FSRLONG_N; i++){
+    usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);  
+  }
 }
 
 void loop() {
@@ -77,19 +90,20 @@ void loop() {
     if (bank>=3) bank=NUM_BANKS-3;;
     bankLeds();   
     resetPress();                           //resets the press booleans on every bank change  
+    resetScales();                          //sends midi off for both scales
   }
   else if(ButtonDown.fallingEdge()) {
     bank=bank-1;
     if (bank<=-1) bank=NUM_BANKS-1;
     bankLeds();
     resetPress();                           //resets the press booleans on every bank change
+    resetScales();                         //sends midi off for both scales
   } 
   
   Serial.println(bank); 
 
   
-  
-  if (bank==0) {                          //MODE0 long sensors act as cntrl short as midi notes (pos on volume faders, notes for more exact instrument than is possible with glove 
+  if (bank==0) {                          //MODE0 BLUE long sensors act as cntrl short as midi notes (pos on volume faders, notes for more exact instrument than is possible with glove 
                                           // alternatively, if guitar is synth sufficient use the midi buttons as solo/active buttons in ableton 
 
     Serial.println("MODE0");
@@ -99,11 +113,11 @@ void loop() {
         usbMIDI.sendControlChange((i+controlVal), poslongMidi[i], MIDI_CHAN);
         fsrlongPress[i]=true;
         int ledcntrlblue = map (poslongReadings[i], 0, 1023, 0, 255);
-          int ledcntrlred = map (poslongReadings[i], 0, 1023, 0, 510);
-          analogWrite(BLUE1, ledcntrlblue);                                       //led animations
-          analogWrite(BLUE2, ledcntrlblue);
-          analogWrite(RED1, ledcntrlred);
-          analogWrite(RED2, ledcntrlred);
+        int ledcntrlred = map (poslongReadings[i], 0, 1023, 0, 255);
+        analogWrite(BLUE1, ledcntrlblue);                                       //led animations
+        analogWrite(BLUE2, ledcntrlblue);
+        analogWrite(RED1, ledcntrlred);
+        analogWrite(RED2, ledcntrlred);
       }
       else if (fsrlongReadings[i] > THRESH_LONG && fsrlongPress[i]==true) {           //this function is only there to shut the Leds off
         fsrlongPress[i] = false;
@@ -116,7 +130,7 @@ void loop() {
       if (fsrshortReadings[i]<=THRESH_SHORT){
         if(!fsrshortPress[i]) {
           fsrshortmidiVol[i] = map (fsrshortReadings[i], 1024, 0, 0, 127);
-          usbMIDI.sendNoteOn(scale[i], fsrshortmidiVol[i], MIDI_CHAN);
+          usbMIDI.sendNoteOn(scaleshort[i], fsrshortmidiVol[i], MIDI_CHAN);
         } 
         fsrshortPress[i]=true;
         analogWrite(BLUE1, 255);
@@ -124,61 +138,97 @@ void loop() {
       }
       else if (fsrshortReadings[i] > THRESH_SHORT && fsrshortPress[i]==true) {
         fsrshortPress[i] = false;
-        usbMIDI.sendNoteOff(scale[i], 127, MIDI_CHAN);
+        usbMIDI.sendNoteOff(scaleshort[i], 127, MIDI_CHAN);
         clearLeds();
         bankLeds();
-        Serial.println(String(" Note ")+(scale[i])+(" LedOff "));
+        Serial.println(String(" Note ")+(scaleshort[i])+(" LedOff "));
       }
     }
   }
 
-
     
   
-  else if (bank==1) {                                                 //MODE1 send notes plus bend on pos sensors. fsr send control values
+  else if (bank==1) {                                                 //MODE0=1 BLUE/GREEN send notes plus bend on pos sensors. fsr send control values
     Serial.println("MODE1");   
-    for(int i=0; i<FSRSHORT_N; i++){  
-      if (fsrlongReadings[i] <= THRESH_LONG){                                               //LONG SENSORS
-        poslongMidi[i] = map (poslongReadings[i], 0, 1023, 0, 127);
-        //usbMIDI.sendControlChange((i+controlVal), poslongMidi[i], MIDI_CHAN);
-        fsrlongPress[i]=true;
-            
-        /*int ledcntrlblue = map (poslongReadings[i], 0, 1023, 0, 255);
-        int ledcntrlred = map (poslongReadings[i], 0, 1023, 0, 510);
-        analogWrite(BLUE1, ledcntrlblue);                                       //led animations
-        analogWrite(BLUE2, ledcntrlblue);
-        analogWrite(RED1, ledcntrlred);
-        analogWrite(RED2, ledcntrlred);*/
-      }    
-      else if (fsrlongReadings[i] > THRESH_LONG && fsrlongPress[i]==true) {           //this function is only there to shut the Leds off
+
+    for(int i=0; i<FSRLONG_N; i++) {
+      if (fsrlongReadings[i]<=THRESH_LONG) { 
+        if (fsrlongPress[i]==false){   
+          delay(20);
+          poslongReadings[i] = analogRead(poslongPins[i]);
+          posnoteLevel[i] = map (fsrlongReadings[i], THRESH_LONG, 0, 0, 127); 
+          usbMIDI.sendNoteOn(scalelong[i], posnoteLevel[i], MIDI_CHAN);     
+          }
+        fsrlongPress[i] = true;
+        poslongPitch[i] = map (poslongReadings[i], 0, 1023, 0, 16383); 
+        usbMIDI.sendPitchBend(poslongPitch[i], MIDI_CHAN);
+        int lednoteblue = map (poslongReadings[i], 0, 1023, 255, 255);
+        int lednotegreen = map (poslongReadings[i], 0, 1023, 0, 255);
+        analogWrite(BLUE1, lednoteblue);                                       //led animations
+        analogWrite(BLUE2, lednoteblue);
+        analogWrite(GREEN1, lednotegreen);
+        analogWrite(GREEN2, lednotegreen);
+      } 
+      else if (fsrlongReadings[i]>THRESH_LONG && fsrlongPress[i] == true) {
+        usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);    
         fsrlongPress[i] = false;
         clearLeds();
-        bankLeds();  
-      }  
+        bankLeds();      
+      }      
     }
+  
     
-    for(int i=0; i<FSRSHORT_N; i++){             //SHORT SENSORS send control values
+    for (int i=0; i<FSRSHORT_N; i++){             //SHORT SENSORS send control values
       if (fsrshortReadings[i]<=THRESH_SHORT){
         if(!fsrshortPress[i]) {
-        usbMIDI.sendControlChange((i+FSRLONG_N+controlVal), 127, MIDI_CHAN);
+          usbMIDI.sendControlChange((i+FSRLONG_N+controlVal), 127, MIDI_CHAN);
         } 
-      fsrshortPress[i]=true;
-      analogWrite(BLUE1, 255);
-      analogWrite(BLUE2, 255);
-      analogWrite(GREEN1, 255);
-      analogWrite(GREEN2, 255);
+        fsrshortPress[i]=true;
+        analogWrite(BLUE1, 255);
+        analogWrite(BLUE2, 255);
+        analogWrite(GREEN1, 255);
+        analogWrite(GREEN2, 255);
       }
       else if (fsrshortReadings[i] > THRESH_SHORT && fsrshortPress[i]==true) {
         fsrshortPress[i] = false;
         clearLeds();
         bankLeds();
-        Serial.println(String(" Note ")+(scale[i])+(" LedOff "));
+        Serial.println(String(" CTRL ")+(i+FSRLONG_N+controlVal)+(" LedOff "));
       }
     }
   }
   
-  else if (bank==2) {             //maybe discard and only have one switch button
+  else if (bank==2) {             //GREEN maybe discard and only have one switch button
     Serial.println("Sooooo?");    
+    for(int i=0; i<FSRLONG_N; i++) {          
+          if (fsrlongReadings[i]<=THRESH_LONG) { 
+            if (fsrlongPress[i]==false){   
+              posnoteLevel[i] = map (fsrlongReadings[i], THRESH_LONG, 0, 0, 127); 
+              posnotePos[i] = poslongReadings[i];
+              usbMIDI.sendNoteOn(scalelong[i], posnoteLevel[i], MIDI_CHAN);  
+             // delay (20);                                 //THIS IN MILLIS
+            }
+            fsrlongPress[i]=true;
+            posChange[i] = (poslongReadings[i] - posnotePos[i]) * 16; 
+            poslongPitch[i] = 8192 + posChange[i];
+            poslongPitch[i] = constrain(poslongPitch[i],0,16383);
+            usbMIDI.sendPitchBend(poslongPitch[i], MIDI_CHAN);
+            int lednoteblue = map (poslongPitch[i], 0, 16383, 255, 255);        //led animations
+            int lednotegreen = map (poslongPitch[i], 0, 16383, 0, 255);
+            analogWrite(BLUE1, lednoteblue);                                        
+            analogWrite(BLUE2, lednoteblue);
+            analogWrite(GREEN1, lednotegreen);
+            analogWrite(GREEN2, lednotegreen);
+            
+          }
+          else if (fsrlongReadings[i]>THRESH_LONG && fsrlongPress[i] == true) {
+            fsrlongPress[i] = false;
+            usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);    
+            clearLeds();
+            bankLeds();      
+            //delay(20)
+          }    
+    }
   }
 
      delay(20);
@@ -187,9 +237,6 @@ void loop() {
 
 
 //ADDITIONAL FUNCTIONS
-
-
-
 
 void initFsrlongs(){
   pinMode(A0, INPUT_PULLUP); 
@@ -302,6 +349,15 @@ void resetPress(){
   }
   for(int i=0; i<FSRLONG_N; i++){ 
     fsrlongPress[i]=false;
+  }
+}
+
+void resetScales(){
+    for (int i=0; i<FSRSHORT_N; i++){
+    usbMIDI.sendNoteOff(scaleshort[i], 127, MIDI_CHAN);  
+  }
+    for (int i=0; i<FSRLONG_N; i++){
+    usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);  
   }
 }
 
