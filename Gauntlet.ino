@@ -91,6 +91,7 @@ void loop() {
     bankLeds();   
     resetPress();                           //resets the press booleans on every bank change  
     resetScales();                          //sends midi off for both scales
+    usbMIDI.sendPitchBend(8192, MIDI_CHAN)
   }
   else if(ButtonDown.fallingEdge()) {
     bank=bank-1;
@@ -98,6 +99,7 @@ void loop() {
     bankLeds();
     resetPress();                           //resets the press booleans on every bank change
     resetScales();                         //sends midi off for both scales
+    usbMIDI.sendPitchBend(8192, MIDI_CHAN);
   } 
   
   Serial.println(bank); 
@@ -170,7 +172,8 @@ void loop() {
         analogWrite(GREEN2, lednotegreen);
       } 
       else if (fsrlongReadings[i]>THRESH_LONG && fsrlongPress[i] == true) {
-        usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);    
+        usbMIDI.sendNoteOff(scalelong[i], 127, MIDI_CHAN);   
+        usbMIDI.sendPitchBend(8192, MIDI_CHAN); 
         fsrlongPress[i] = false;
         clearLeds();
         bankLeds();      
