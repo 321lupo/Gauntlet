@@ -92,7 +92,7 @@ void loop() {
 
   Serial.println("");    
 
-  if(ButtonUp.fallingEdge()) {              //3 banks and the buttons switch through them BLUE==MODE0, TURKOISE==MODE1, GREEN=MODE2
+  if(ButtonUp.fallingEdge()) {              //3 banks and the buttons switch through them BLUE==MODE0, TURQUOISE==MODE1, RED=MODE2
     bank++;                                 //Leds show bank except when control or midi notes are being sent                                
     if (bank>=2) bank=0;;
     bankLeds();   
@@ -133,11 +133,8 @@ void loop() {
         usbMIDI.sendControlChange((i+controlVal), poslongMidi[i], MIDI_CHAN);
         fsrlongPress[i]=true;
         int ledcntrlblue = map (poslongReadings[i], 0, 1023, 0, 255);
-        int ledcntrlred = map (poslongReadings[i], 0, 1023, 0, 255);
         analogWrite(BLUE1, ledcntrlblue);                                       //led animations
         analogWrite(BLUE2, ledcntrlblue);
-        analogWrite(RED1, ledcntrlred);
-        analogWrite(RED2, ledcntrlred);
       }
       else if (fsrlongReadings[i] > THRESH_LONG && fsrlongPress[i]==true) {     //this function is only there to shut the Leds off
         fsrlongPress[i] = false;
@@ -172,7 +169,6 @@ void loop() {
           posnoteLevel[i] = map (fsrlongReadings[i], THRESH_LONG, 0, 0, 127); 
           posnotePos[i] = poslongReadings[i];
           usbMIDI.sendNoteOn(scalelong[i]+(scalebank*12), posnoteLevel[i], MIDI_CHAN);  
-          // delay (20);                                                        //THIS IN MILLIS
           }
           fsrlongPress[i]=true;
           posChange[i] = (poslongReadings[i] - posnotePos[i]) * 16; 
@@ -191,7 +187,6 @@ void loop() {
           usbMIDI.sendNoteOff(scalelong[i]+(scalebank*12), 127, MIDI_CHAN);    
           clearLeds();
           bankLeds();      
-          //delay(20)
         }    
     }
   
