@@ -98,7 +98,7 @@ void loop() {
     bankLeds();   
     resetPress();                           //resets the press booleans on every bank change  
     resetScales();                          //sends midi off for both scales
-    usbMIDI.sendPitchBend(8192, MIDI_CHAN);
+    usbMIDI.sendPitchBend(8192, MIDI_CHAN); //reset Pitchbend to 0
     stopTime=millisTime;
     stopBool=true;
   }
@@ -175,7 +175,7 @@ void loop() {
           poslongPitch[i] = 8192 + posChange[i];
           poslongPitch[i] = constrain(poslongPitch[i],0,16383);
           usbMIDI.sendPitchBend(poslongPitch[i], MIDI_CHAN);
-          int lednoteblue = map (poslongPitch[i], 0, 16383, 255, 255);          //led animations
+          int lednoteblue = map (poslongPitch[i], 0, 16383, 255, 0);          //led animations
           int lednotegreen = map (poslongPitch[i], 0, 16383, 0, 255);
           analogWrite(BLUE1, lednoteblue);                                        
           analogWrite(BLUE2, lednoteblue);
@@ -185,16 +185,19 @@ void loop() {
         else if (fsrlongReadings[i]>THRESH_LONG && fsrlongPress[i] == true) {
           fsrlongPress[i] = false;
           usbMIDI.sendNoteOff(scalelong[i]+(scalebank*12), 127, MIDI_CHAN);    
+          //usbMIDI.sendPitchBend(8192, MIDI_CHAN);
           clearLeds();
-          bankLeds();      
+          bankLeds();
+                                                            
         }    
     }
   
     for(int i=0; i<FSRSHORT_N; i++){                                            //SHORT SENSORS
       if (fsrshortReadings[i]<=THRESH_SHORT){
         if(!fsrshortPress[i]) {
-          fsrshortmidiVol[i] = map (fsrshortReadings[i], 1024, 0, 0, 127);
-          usbMIDI.sendNoteOn(scaleshort[i]+(scalebank*12), fsrshortmidiVol[i], MIDI_CHAN);
+         usbMIDI.sendPitchBend(8192, MIDI_CHAN);                                                   //OR HERE??????
+         fsrshortmidiVol[i] = map (fsrshortReadings[i], 1024, 0, 0, 127);
+         usbMIDI.sendNoteOn(scaleshort[i]+(scalebank*12), fsrshortmidiVol[i], MIDI_CHAN);
         } 
         fsrshortPress[i]=true;
         analogWrite(BLUE1, 255);
