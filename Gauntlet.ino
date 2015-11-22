@@ -45,7 +45,7 @@ int scaleshort[] = {60, 62, 64, 65, 67, 69, 71, 72};   //C MAJOR SCALE
 #define BUTTON2 0
 Bounce ButtonUp = Bounce(BUTTON1, 10);
 Bounce ButtonDown = Bounce(BUTTON2, 10);
-int bank = 0;
+int bank = 1;
 int scalebank = 0;
 
 unsigned long millisTime;                     
@@ -135,6 +135,9 @@ void loop() {
         int ledcntrlblue = map (poslongReadings[i], 0, 1023, 0, 255);
         analogWrite(BLUE1, ledcntrlblue);                                       //led animations
         analogWrite(BLUE2, ledcntrlblue);
+        int lednotegreen = map (poslongPitch[i], 0, 16383, 0, 255);
+        analogWrite(GREEN1, lednotegreen);
+        analogWrite(GREEN2, lednotegreen);
       }
       else if (fsrlongReadings[i] > THRESH_LONG && fsrlongPress[i]==true) {     //this function is only there to shut the Leds off
         fsrlongPress[i] = false;
@@ -150,6 +153,8 @@ void loop() {
         fsrshortPress[i]=true;
         analogWrite(BLUE1, 255);
         analogWrite(BLUE2, 255);
+        analogWrite(GREEN1, 255);
+        analogWrite(GREEN2, 255);
       }
       else if (fsrshortReadings[i] > THRESH_SHORT && fsrshortPress[i]==true) {
         fsrshortPress[i] = false;
@@ -176,11 +181,9 @@ void loop() {
           poslongPitch[i] = constrain(poslongPitch[i],0,16383);
           usbMIDI.sendPitchBend(poslongPitch[i], MIDI_CHAN);
           int lednoteblue = map (poslongPitch[i], 0, 16383, 255, 0);          //led animations
-          int lednotegreen = map (poslongPitch[i], 0, 16383, 0, 255);
           analogWrite(BLUE1, lednoteblue);                                        
           analogWrite(BLUE2, lednoteblue);
-          analogWrite(GREEN1, lednotegreen);
-          analogWrite(GREEN2, lednotegreen);
+         
         } 
         else if (fsrlongReadings[i]>THRESH_LONG && fsrlongPress[i] == true) {
           fsrlongPress[i] = false;
@@ -202,8 +205,6 @@ void loop() {
         fsrshortPress[i]=true;
         analogWrite(BLUE1, 255);
         analogWrite(BLUE2, 255);
-        analogWrite(GREEN1, 255);
-        analogWrite(GREEN2, 255);
       }
       else if (fsrshortReadings[i] > THRESH_SHORT && fsrshortPress[i]==true) {
         fsrshortPress[i] = false;
